@@ -10,12 +10,13 @@ import (
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Task struct {
-	ID        string    `json:"id,omitempty" bson:"_id,omitempty"`
+	ID        string     `json:"id,omitempty" bson:"_id,omitempty"`
 	Title     string    `json:"title,omitempty" bson:"title,omitempty"`
 	Completed bool      `json:"completed,omitempty" bson:"completed,omitempty"`
 	CreatedAt time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
@@ -86,14 +87,21 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	params := mux.Vars(r)
-	taskID := params["id"]
+	taskIDHex := params["id"]
+
+	taskID, err := primitive.ObjectIDFromHex(taskIDHex)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"Invalid task ID"}`))
+		return
+	}
 
 	collection := client.Database("gotestdb").Collection("tasks")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	var task Task
-	err := collection.FindOne(ctx, bson.M{"_id": taskID}).Decode(&task)
+	err = collection.FindOne(ctx, bson.M{"_id": taskID}).Decode(&task)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(`{"error":"` + err.Error() + `"}`))
@@ -128,7 +136,14 @@ func UpdateTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	params := mux.Vars(r)
-	taskID := params["id"]
+	taskIDHex := params["id"]
+
+	taskID, err := primitive.ObjectIDFromHex(taskIDHex)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"Invalid task ID"}`))
+		return
+	}
 
 	var task Task
 	_ = json.NewDecoder(r.Body).Decode(&task)
@@ -160,7 +175,14 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	params := mux.Vars(r)
-	taskID := params["id"]
+	taskIDHex := params["id"]
+
+	taskID, err := primitive.ObjectIDFromHex(taskIDHex)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"Invalid task ID"}`))
+		return
+	}
 
 	collection := client.Database("gotestdb").Collection("tasks")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
